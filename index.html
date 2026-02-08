@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Master Health | Enterprise Farm IoT</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #0b0c10; 
+            color: #d1d5db;
+        }
+
+        .panel {
+            background-color: #111217;
+            border: 1px solid #1f2025;
+            transition: all 0.3s ease;
+        }
+
+        .panel:hover {
+            border-color: #2c2d33;
+        }
+
+        .active-panel {
+            border-color: #10b981 !important;
+            background-color: rgba(16, 185, 129, 0.08) !important;
+            box-shadow: inset 4px 0 0 0 #10b981;
+        }
+
+        .table-row {
+            transition: all 0.2s ease;
+            border-left: 4px solid transparent;
+        }
+        .table-row:nth-child(even) { background-color: #16171d; }
+        .table-row:hover { background-color: #1a1b21; cursor: pointer; }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: #0b0c10; }
+        ::-webkit-scrollbar-thumb { background: #2c2d33; border-radius: 10px; }
+
+        select {
+            background-color: #111217;
+            border: 1px solid #1f2025;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 11px;
+            outline: none;
+        }
+
+        .status-chip {
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 9px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .forecast-card:hover { background: rgba(255,255,255,0.03); }
+
+        /* Actuation Buttons Styling */
+        .btn-mode {
+            @apply flex-1 py-2 text-[10px] font-black uppercase tracking-widest transition-all rounded-md border border-transparent;
+            background: #1f2025;
+            color: #474a56;
+        }
+        .btn-mode.active {
+            background: #10b981;
+            color: white;
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn-action-on {
+            @apply flex-1 py-3 rounded-md text-xs font-black uppercase tracking-widest transition-all border border-emerald-900/50 bg-emerald-950/20 text-emerald-800;
+        }
+        .btn-action-on.active {
+            @apply bg-emerald-500 text-white border-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.4)];
+        }
+
+        .btn-action-off {
+            @apply flex-1 py-3 rounded-md text-xs font-black uppercase tracking-widest transition-all border border-rose-900/50 bg-rose-950/20 text-rose-800;
+        }
+        .btn-action-off.active {
+            @apply bg-rose-500 text-white border-rose-400 shadow-[0_0_20px_rgba(244,63,94,0.4)];
+        }
+        
+        .btn-disabled {
+            opacity: 0.3;
+            cursor: not-allowed !important;
+        }
+
+        /* Blinking Alert Animation */
+        @keyframes blink-alert {
+            0%, 100% { border-color: #f43f5e; box-shadow: 0 0 10px rgba(244, 63, 94, 0.2); }
+            50% { border-color: #1f2025; box-shadow: none; }
+        }
+        .animate-blink-alert { animation: blink-alert 1s infinite; }
+
+        /* Blinking Table Row Animation */
+        @keyframes blink-row {
+            0%, 100% { background-color: rgba(244, 63, 94, 0.15); }
+            50% { background-color: transparent; }
+        }
+        .animate-blink-row { animation: blink-row 1.5s infinite ease-in-out; }
+    </style>
+</head>
+<body class="p-3 md:p-4 select-none">
+
+    <!-- Top Navigation -->
+    <nav class="flex justify-between items-center bg-[#111217] border border-[#1f2025] p-2 px-4 mb-4 rounded shadow-xl">
+        <div class="flex items-center gap-3">
+            <div class="bg-emerald-600 p-1 rounded text-white shadow-lg shadow-emerald-900/20"><i data-lucide="layout-grid" class="w-4 h-4"></i></div>
+            <h1 class="text-sm font-black text-white tracking-tight uppercase">Master Health 1 <span class="text-[10px] font-normal text-slate-500 lowercase ml-3">Live Feed Engine</span></h1>
+        </div>
+
+        <div class="flex items-center gap-6">
+            <div class="flex items-center gap-2">
+                <span class="text-[9px] font-bold uppercase tracking-widest text-slate-500">Crop Focus</span>
+                <select id="crop-selector" onchange="handleCropChange()">
+                    <option value="rice">Rice (Paddy)</option>
+                    <option value="wheat">Wheat</option>
+                    <option value="cotton">Cotton</option>
+                    <option value="sugarcane">Sugarcane</option>
+                    <option value="maize">Maize</option>
+                    <option value="pulses">Pulses</option>
+                    <option value="tomato">Tomato</option>
+                    <option value="potato">Potato</option>
+                    <option value="groundnut">Groundnut</option>
+                    <option value="mustard">Mustard</option>
+                    <option value="grapes">Grapes</option>
+                    <option value="onion">Onion</option>
+                    <option value="chili">Chili / Pepper</option>
+                    <option value="soybean">Soybean</option>
+                    <option value="tea">Tea</option>
+                    <option value="coffee">Coffee</option>
+                </select>
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="flex items-center gap-2">
+                    <span id="status-dot" class="h-2 w-2 rounded-full bg-emerald-500"></span>
+                    <span class="text-[10px] font-bold text-white uppercase tracking-wider" id="sync-text">Connected</span>
+                </div>
+                <div class="h-5 w-px bg-slate-800"></div>
+                <div class="flex items-center gap-2">
+                    <i data-lucide="clock" class="w-3 h-3 text-slate-500"></i>
+                    <span id="real-time-clock" class="text-[10px] font-mono text-slate-400">--:--:--</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Dashboard Grid -->
+    <div class="grid grid-cols-12 gap-3 h-[calc(100vh-85px)]">
+        
+        <!-- ROW 1: KPI TILES -->
+        <div id="tile-conn" class="col-span-12 lg:col-span-3 panel p-4 rounded flex flex-col items-center justify-center text-center">
+            <p class="text-[10px] font-bold text-slate-500 uppercase mb-2 tracking-tighter">Device Power</p>
+            <p id="label-conn" class="text-2xl font-black text-emerald-500">ONLINE</p>
+        </div>
+        <div id="tile-status" class="col-span-12 lg:col-span-3 panel p-4 rounded flex flex-col items-center justify-center text-center border-l-4 border-l-emerald-500">
+            <p class="text-[10px] font-bold text-slate-500 uppercase mb-2 tracking-tighter">System Integrity</p>
+            <p id="app-status" class="text-2xl font-black text-emerald-500 tracking-tight uppercase">Healthy</p>
+        </div>
+        <div class="col-span-12 lg:col-span-3 panel p-4 rounded flex flex-col items-center justify-center text-center">
+            <p class="text-[10px] font-bold text-slate-500 uppercase mb-2 tracking-tighter">Rain Prediction (Today)</p>
+            <div class="flex items-baseline gap-2">
+                <p id="label-rain" class="text-2xl font-black text-blue-400">--%</p>
+                <p id="weather-desc" class="text-[9px] font-bold text-slate-500 uppercase">Fetching...</p>
+            </div>
+        </div>
+
+        <!-- Master Circular Gauge -->
+        <div class="col-span-12 lg:col-span-3 panel p-4 rounded flex items-center justify-center relative bg-gradient-to-br from-[#111217] to-black/30">
+            <div class="text-center">
+                <p class="text-[9px] font-bold text-slate-500 uppercase mb-4 tracking-widest">Master pF Saturation</p>
+                <div class="relative w-28 h-14 overflow-hidden">
+                    <div class="absolute top-0 w-28 h-28 border-[10px] border-[#1f2025] rounded-full"></div>
+                    <div id="master-gauge-fill" class="absolute top-0 w-28 h-28 border-[10px] border-blue-500 rounded-full" style="clip-path: polygon(0 0, 100% 0, 100% 50%, 0 50%); transform: rotate(-180deg); transition: transform 0.5s ease;"></div>
+                </div>
+                <p id="master-val" class="text-2xl font-black text-white mt-[-8px]">--%</p>
+            </div>
+        </div>
+
+        <!-- ROW 2: MAIN WORKSPACE -->
+        <!-- Metrics Table -->
+        <div class="col-span-12 lg:col-span-4 panel flex flex-col rounded overflow-hidden">
+            <div class="p-3 bg-[#16171d] border-b border-[#1f2025] flex justify-between items-center">
+                <span class="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-2"><i data-lucide="activity" class="w-3 h-3 text-emerald-500"></i> Telemetry Matrix</span>
+                <span class="text-[9px] font-mono text-slate-500" id="data-age">Stable</span>
+            </div>
+            <div class="flex-grow overflow-auto custom-scrollbar">
+                <table class="w-full text-left text-[11px]">
+                    <thead class="bg-[#0b0c10] text-slate-500 sticky top-0 uppercase font-black text-[9px]">
+                        <tr>
+                            <th class="p-3">Sensor</th>
+                            <th class="p-3 text-center">Live Value</th>
+                            <th class="p-3 text-center">Standard</th>
+                            <th class="p-3 text-center">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="data-table-body">
+                        <!-- Populated via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Analytics Center Chart -->
+        <div class="col-span-12 lg:col-span-5 panel p-5 rounded flex flex-col relative">
+            <div class="flex justify-between items-start mb-8">
+                <div>
+                    <h3 id="chart-title" class="text-[10px] font-black text-white uppercase tracking-widest">Air Temperature Trends</h3>
+                    <p class="text-[9px] text-slate-500 mt-1 uppercase">Live pF Limit visualization • Rolling window</p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="toggleMultiGraph()" id="multi-btn" class="bg-[#1f2025] hover:bg-[#2c2d33] text-[9px] font-bold text-slate-400 px-3 py-1.5 rounded transition-all border border-[#2c2d33]">Overlay All</button>
+                </div>
+            </div>
+            <div class="flex-grow">
+                <canvas id="liveChart"></canvas>
+            </div>
+        </div>
+
+        <!-- ROW 2 RIGHT: Alerts, Actuation, Weather -->
+        <div class="col-span-12 lg:col-span-3 flex flex-col gap-3">
+            <!-- System Alerts -->
+            <div id="alert-panel" class="panel p-5 rounded border-l-4 border-emerald-500 bg-emerald-950/5">
+                <div class="flex items-center gap-2 mb-4">
+                    <i data-lucide="alert-circle" id="alert-icon" class="text-emerald-500 w-4 h-4"></i>
+                    <p class="text-[10px] font-black text-emerald-500 uppercase tracking-widest">System Alerts</p>
+                </div>
+                <p id="alert-msg" class="text-xs text-emerald-200 leading-relaxed font-medium">Monitoring active...</p>
+                <div class="mt-6 pt-4 border-t border-[#1f2025] flex justify-between items-center text-[10px] font-bold uppercase tracking-tighter">
+                    <span class="text-slate-500">Protection Active</span>
+                    <span class="text-emerald-500">Live</span>
+                </div>
+            </div>
+
+            <!-- Actuation Panel -->
+            <div class="panel p-5 rounded">
+                <div class="flex items-center justify-between mb-5">
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="zap" class="text-blue-500 w-4 h-4"></i>
+                        <p class="text-[10px] font-black text-white uppercase tracking-widest">Actuation Control</p>
+                    </div>
+                    <span id="pump-indicator" class="w-2 h-2 rounded-full bg-slate-800"></span>
+                </div>
+                
+                <div class="space-y-4">
+                    <div>
+                        <p class="text-[9px] font-bold text-slate-500 uppercase mb-2 tracking-widest">System Mode</p>
+                        <div class="flex p-1 bg-[#0b0c10] rounded-lg gap-1 border border-[#1f2025]">
+                            <button id="mode-auto" onclick="setPumpMode('auto')" class="btn-mode active">Auto</button>
+                            <button id="mode-manual" onclick="setPumpMode('manual')" class="btn-mode">Manual</button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <p class="text-[9px] font-bold text-slate-500 uppercase mb-2 tracking-widest">Manual Action</p>
+                        <div class="flex gap-2">
+                            <button id="pump-on" onclick="setPumpState('on')" class="btn-action-on">ON</button>
+                            <button id="pump-off" onclick="setPumpState('off')" class="btn-action-off">OFF</button>
+                        </div>
+                    </div>
+                    
+                    <div id="rain-protection-badge" class="hidden p-2 rounded bg-rose-500/10 border border-rose-500/30 flex items-center gap-2">
+                        <i data-lucide="cloud-rain" class="w-3 h-3 text-rose-500"></i>
+                        <span class="text-[8px] font-black text-rose-500 uppercase tracking-widest">Rain Protection Active - Logic Deferred</span>
+                    </div>
+                    <p id="mode-hint" class="text-[8px] text-slate-600 italic">* Controls locked in Auto mode</p>
+                </div>
+            </div>
+
+            <!-- Weather Forecast -->
+            <div class="panel p-5 rounded flex-grow flex flex-col">
+                <div class="flex justify-between items-center mb-5">
+                    <p class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Weekly Predictions</p>
+                    <span class="text-[8px] bg-indigo-500/20 text-indigo-400 px-1.5 py-0.5 rounded font-bold uppercase">Open-Meteo AI</span>
+                </div>
+                <div id="weather-forecast" class="space-y-3 flex-grow overflow-auto custom-scrollbar pr-1">
+                    <div class="flex items-center justify-center py-8">
+                        <i data-lucide="loader-2" class="w-5 h-5 animate-spin text-slate-700"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ1zaYFByKGHkAJOUo1IbSAcRY0m8L0d1HGLQnScFlq76p2nf_srfjQz7O_0KGNBh6SI4VpX7fiZ1ck/pub?output=csv";
+        
+        let chart;
+        let currentParam = 'npk_h'; 
+        let historyData = [];
+        let isMultiGraph = false;
+        let systemMode = 'auto';
+        let pumpState = 'off';
+        let currentRainProb = 0;
+
+        // Data Staleness Management
+        let lastRawContent = "";
+        let lastContentChangeTime = Date.now();
+        let isDeviceOnline = true;
+
+        const cropStandards = {
+            rice: { name: "Rice", sht_t: [20, 35], sht_h: [60, 90], npk_t: [20, 30], npk_h: [70, 95], ph: [5.5, 7.0], ec: [0, 800], n: [80, 150], p: [30, 60], k: [40, 90] },
+            wheat: { name: "Wheat", sht_t: [10, 25], sht_h: [40, 60], npk_t: [15, 22], npk_h: [50, 70], ph: [6.0, 7.5], ec: [0, 600], n: [60, 120], p: [25, 50], k: [30, 70] },
+            cotton: { name: "Cotton", sht_t: [22, 32], sht_h: [50, 70], npk_t: [20, 28], npk_h: [40, 60], ph: [5.8, 8.0], ec: [0, 1000], n: [70, 140], p: [20, 45], k: [50, 110] },
+            sugarcane: { name: "Sugarcane", sht_t: [20, 35], sht_h: [65, 85], npk_t: [22, 30], npk_h: [75, 95], ph: [6.0, 7.5], ec: [0, 900], n: [100, 180], p: [40, 80], k: [60, 120] },
+            maize: { name: "Maize", sht_t: [18, 30], sht_h: [55, 75], npk_t: [18, 25], npk_h: [60, 80], ph: [5.5, 7.5], ec: [0, 700], n: [80, 160], p: [30, 70], k: [40, 100] },
+            pulses: { name: "Pulses", sht_t: [20, 30], sht_h: [40, 60], npk_t: [18, 25], npk_h: [45, 65], ph: [6.5, 7.8], ec: [0, 500], n: [20, 50], p: [40, 90], k: [30, 80] },
+            tomato: { name: "Tomato", sht_t: [18, 28], sht_h: [60, 85], npk_t: [15, 25], npk_h: [60, 80], ph: [6.0, 7.0], ec: [0, 2500], n: [100, 150], p: [50, 100], k: [150, 250] },
+            potato: { name: "Potato", sht_t: [15, 25], sht_h: [50, 80], npk_t: [12, 20], npk_h: [70, 85], ph: [5.0, 6.5], ec: [0, 1700], n: [120, 180], p: [60, 120], k: [150, 300] },
+            groundnut: { name: "Groundnut", sht_t: [22, 32], sht_h: [50, 70], npk_t: [20, 30], npk_h: [50, 70], ph: [6.0, 7.5], ec: [0, 800], n: [20, 60], p: [40, 80], k: [40, 100] },
+            mustard: { name: "Mustard", sht_t: [10, 25], sht_h: [40, 65], npk_t: [12, 22], npk_h: [50, 70], ph: [6.0, 7.5], ec: [0, 600], n: [60, 100], p: [30, 60], k: [40, 80] },
+            grapes: { name: "Grapes", sht_t: [15, 35], sht_h: [60, 80], npk_t: [18, 24], npk_h: [40, 60], ph: [5.5, 7.0], ec: [0, 1500], n: [50, 80], p: [30, 50], k: [100, 150] },
+            onion: { name: "Onion", sht_t: [13, 24], sht_h: [60, 70], npk_t: [15, 20], npk_h: [60, 75], ph: [6.0, 7.0], ec: [0, 1200], n: [80, 120], p: [40, 60], k: [80, 120] },
+            chili: { name: "Chili", sht_t: [20, 30], sht_h: [60, 80], npk_t: [18, 25], npk_h: [60, 80], ph: [6.0, 7.0], ec: [0, 2000], n: [100, 150], p: [50, 80], k: [60, 100] },
+            soybean: { name: "Soybean", sht_t: [20, 30], sht_h: [60, 75], npk_t: [18, 24], npk_h: [60, 80], ph: [6.0, 6.8], ec: [0, 800], n: [20, 40], p: [40, 60], k: [40, 80] },
+            tea: { name: "Tea", sht_t: [13, 30], sht_h: [70, 90], npk_t: [18, 25], npk_h: [70, 90], ph: [4.5, 5.5], ec: [0, 500], n: [120, 160], p: [40, 60], k: [80, 120] },
+            coffee: { name: "Coffee", sht_t: [15, 28], sht_h: [70, 85], npk_t: [20, 26], npk_h: [60, 80], ph: [5.0, 6.0], ec: [0, 600], n: [100, 140], p: [30, 50], k: [120, 180] }
+        };
+
+        const sensorMap = [
+            { id: 'sht_t', label: 'Air Temp', unit: '°C', idx: 1 },
+            { id: 'sht_h', label: 'Air Humid', unit: '%', idx: 2 },
+            { id: 'npk_h', label: 'Soil Moisture', unit: '%', idx: 3 }, 
+            { id: 'npk_t', label: 'Soil Temp', unit: '°C', idx: 4 }, 
+            { id: 'ec', label: 'Conductivity', unit: 'uS', idx: 5 },
+            { id: 'ph', label: 'Soil pH', unit: '', idx: 6 },
+            { id: 'n', label: 'Nitrogen', unit: 'mg', idx: 7 },
+            { id: 'p', label: 'Phosphorus', unit: 'mg', idx: 8 },
+            { id: 'k', label: 'Potassium', unit: 'mg', idx: 9 }
+        ];
+
+        function initChart() {
+            const ctx = document.getElementById('liveChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: { labels: [], datasets: [] },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { color: '#474a56', font: { size: 9 } } },
+                        y: { border: { display: false }, grid: { color: '#1f2025' }, ticks: { color: '#474a56', font: { size: 9 } } }
+                    },
+                    animation: { duration: 200 }
+                }
+            });
+            updateChartConfig();
+        }
+
+        function updateChartConfig() {
+            chart.data.datasets = [];
+            if (isMultiGraph) {
+                chart.options.plugins.legend.display = true;
+                chart.options.plugins.legend.labels = { color: '#94a3b8', font: { size: 8 } };
+                sensorMap.slice(0, 5).forEach(d => {
+                    chart.data.datasets.push({ label: d.label, data: [], borderColor: "#3a3c46", borderWidth: 1, pointRadius: 0, tension: 0.4 });
+                });
+            } else {
+                chart.options.plugins.legend.display = false;
+                const cropKey = document.getElementById('crop-selector').value;
+                const limits = cropStandards[cropKey][currentParam];
+                chart.data.datasets.push({ label: 'Live', data: [], borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.05)', fill: true, borderWidth: 2, pointRadius: 2, tension: 0.4, order: 1 });
+                chart.data.datasets.push({ label: 'Lower', data: [], borderColor: '#f59e0b', borderWidth: 1, borderDash: [4, 4], pointRadius: 0, fill: false, order: 2 });
+                chart.data.datasets.push({ label: 'Upper', data: [], borderColor: '#ef4444', borderWidth: 1, borderDash: [4, 4], pointRadius: 0, fill: false, order: 3 });
+            }
+        }
+
+        function updatePumpUI() {
+            const onBtn = document.getElementById('pump-on');
+            const offBtn = document.getElementById('pump-off');
+            const indicator = document.getElementById('pump-indicator');
+            
+            onBtn.classList.toggle('active', pumpState === 'on');
+            offBtn.classList.toggle('active', pumpState === 'off');
+            indicator.className = pumpState === 'on' ? "w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_10px_#10b981]" : "w-2 h-2 rounded-full bg-slate-800";
+            
+            const isAuto = systemMode === 'auto';
+            onBtn.disabled = isAuto;
+            offBtn.disabled = isAuto;
+            onBtn.classList.toggle('btn-disabled', isAuto);
+            offBtn.classList.toggle('btn-disabled', isAuto);
+        }
+
+        function setPumpMode(mode) {
+            systemMode = mode;
+            document.getElementById('mode-auto').classList.toggle('active', mode === 'auto');
+            document.getElementById('mode-manual').classList.toggle('active', mode === 'manual');
+            updatePumpUI();
+        }
+
+        function setPumpState(state) {
+            if(systemMode === 'auto') return;
+            pumpState = state;
+            updatePumpUI();
+        }
+
+        async function fetchActualWeather() {
+            const lat = 19.0760; 
+            const lon = 72.8777;
+            const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&daily=precipitation_probability_max,temperature_2m_max,temperature_2m_min,weathercode&timezone=auto`;
+
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+                const daily = data.daily;
+                
+                const container = document.getElementById('weather-forecast');
+                container.innerHTML = '';
+                
+                const codeMap = {
+                    0: { icon: 'sun', text: 'Clear' },
+                    1: { icon: 'cloud-sun', text: 'Partly Cloudy' },
+                    2: { icon: 'cloud-sun', text: 'Partly Cloudy' },
+                    3: { icon: 'cloud', text: 'Overcast' },
+                    45: { icon: 'cloud', text: 'Fog' },
+                    51: { icon: 'cloud-rain', text: 'Drizzle' },
+                    61: { icon: 'cloud-rain', text: 'Rain' },
+                    80: { icon: 'cloud-lightning', text: 'Showers' }
+                };
+
+                currentRainProb = daily.precipitation_probability_max[0];
+                document.getElementById('label-rain').innerText = currentRainProb + "%";
+                const todayCode = daily.weathercode[0];
+                document.getElementById('weather-desc').innerText = (codeMap[todayCode]?.text || 'Cloudy').toUpperCase();
+
+                const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+                for(let i=0; i<6; i++) {
+                    const date = new Date(daily.time[i]);
+                    const dayName = days[date.getDay()];
+                    const code = daily.weathercode[i];
+                    const icon = codeMap[code]?.icon || 'cloud';
+                    const prob = daily.precipitation_probability_max[i];
+
+                    const item = document.createElement('div');
+                    item.className = "forecast-card flex items-center justify-between p-2 rounded transition-all";
+                    item.innerHTML = `
+                        <span class="w-8 text-[10px] font-black text-slate-500">${dayName}</span>
+                        <i data-lucide="${icon}" class="w-3.5 h-3.5 ${prob > 30 ? 'text-indigo-400' : 'text-orange-400'}"></i>
+                        <div class="flex items-center gap-2">
+                            <span class="text-[11px] font-black text-white">${Math.round(daily.temperature_2m_max[i])}°</span>
+                            <div class="w-10 h-1 bg-slate-800 rounded-full overflow-hidden">
+                                <div class="h-full bg-indigo-500" style="width: ${prob}%"></div>
+                            </div>
+                        </div>
+                    `;
+                    container.appendChild(item);
+                }
+                lucide.createIcons();
+            } catch (e) {
+                console.error("Weather Fetch Error", e);
+            }
+        }
+
+        function setActiveParam(id) {
+            currentParam = id;
+            document.getElementById('chart-title').innerText = sensorMap.find(d => d.id === id).label + " Trend";
+            const rows = document.querySelectorAll('#data-table-body tr');
+            rows.forEach(row => {
+                row.classList.toggle('active-panel', row.getAttribute('data-id') === id);
+            });
+            updateChartConfig();
+            refreshChart();
+        }
+
+        function toggleMultiGraph() {
+            isMultiGraph = !isMultiGraph;
+            document.getElementById('multi-btn').innerText = isMultiGraph ? "Focus Param" : "Overlay All";
+            updateChartConfig();
+            refreshChart();
+        }
+
+        function updateUI(latest) {
+            const crop = cropStandards[document.getElementById('crop-selector').value];
+            const tableBody = document.getElementById('data-table-body');
+            tableBody.innerHTML = '';
+            let alerts = [];
+
+            sensorMap.forEach(s => {
+                let val = isDeviceOnline ? parseFloat(latest[s.idx]) : 0;
+                const range = crop[s.id];
+                const isViolation = isDeviceOnline && (val < range[0] || val > range[1]);
+                const colorClass = isViolation ? 'text-rose-500' : 'text-emerald-500';
+                const row = document.createElement('tr');
+                row.className = `table-row border-b border-[#1f2025] ${currentParam === s.id ? 'active-panel' : ''} ${isViolation ? 'animate-blink-row' : ''}`;
+                row.setAttribute('data-id', s.id);
+                row.onclick = () => setActiveParam(s.id);
+                row.innerHTML = `
+                    <td class="p-3 text-white font-medium">${s.label}</td>
+                    <td class="p-3 text-center font-mono font-black ${isViolation ? 'text-rose-500' : 'text-emerald-500'}">${val.toFixed(1)}</td>
+                    <td class="p-3 text-center text-slate-600 font-mono">${range[0]}-${range[1]}</td>
+                    <td class="p-3 text-center"><span class="status-chip ${isViolation ? 'bg-rose-500/20 text-rose-500' : 'bg-emerald-500/20 text-emerald-500'}">${isViolation ? 'Warn' : 'OK'}</span></td>
+                `;
+                tableBody.appendChild(row);
+                if (isViolation) alerts.push(s.label);
+            });
+
+            const moist = isDeviceOnline ? parseFloat(latest[3]) : 0;
+            document.getElementById('master-val').innerText = Math.round(moist) + "%";
+            document.getElementById('master-gauge-fill').style.transform = `rotate(${-180 + (moist * 1.8)}deg)`;
+
+            const rainBadge = document.getElementById('rain-protection-badge');
+            if(currentRainProb > 70) rainBadge.classList.remove('hidden');
+            else rainBadge.classList.add('hidden');
+
+            if(systemMode === 'auto') {
+                if(isDeviceOnline && moist < crop.npk_h[0] && currentRainProb < 70) pumpState = 'on';
+                else pumpState = 'off';
+            }
+            updatePumpUI();
+
+            const alertMsg = document.getElementById('alert-msg'), alertPanel = document.getElementById('alert-panel'), appStat = document.getElementById('app-status');
+            if (!isDeviceOnline) {
+                alertMsg.innerText = "DEVICE OFFLINE: Data stream interrupted for >10s.";
+                alertPanel.className = "panel p-5 rounded border-l-4 border-slate-500 bg-slate-900/10";
+                appStat.innerText = "OFFLINE"; appStat.className = "text-2xl font-black text-slate-500";
+            } else if (alerts.length > 0) {
+                alertMsg.innerHTML = `<span class="font-black text-rose-500">EXCEPTION:</span> ${alerts.join(", ")} out of range.`;
+                alertPanel.className = "panel p-5 rounded border-l-4 border-rose-500 bg-rose-950/5 animate-blink-alert";
+                appStat.innerText = "WARNING"; appStat.className = "text-2xl font-black text-rose-500 uppercase";
+            } else {
+                alertMsg.innerText = "System normal. All parameters within safety thresholds.";
+                alertPanel.className = "panel p-5 rounded border-l-4 border-emerald-500 bg-emerald-950/5";
+                appStat.innerText = "Healthy"; appStat.className = "text-2xl font-black text-emerald-500 uppercase";
+            }
+        }
+
+        async function fetchData() {
+            try {
+                const res = await fetch(`${csvUrl}&cb=${Date.now()}`);
+                const text = await res.text();
+                const rows = text.split('\n').map(r => r.split(',')).filter(r => r.length > 5);
+                if (rows.length < 2) return;
+                
+                const latestRow = rows[rows.length - 1];
+                const contentStr = latestRow.join('|');
+
+                if (contentStr !== lastRawContent) {
+                    lastRawContent = contentStr;
+                    lastContentChangeTime = Date.now();
+                    isDeviceOnline = true;
+                } else if (Date.now() - lastContentChangeTime > 10000) {
+                    isDeviceOnline = false;
+                }
+
+                document.getElementById('label-conn').innerText = isDeviceOnline ? "ONLINE" : "OFFLINE";
+                document.getElementById('label-conn').className = isDeviceOnline ? "text-2xl font-black text-emerald-500" : "text-2xl font-black text-slate-500";
+                document.getElementById('data-age').innerText = isDeviceOnline ? "Live Feed" : "Stale (10s+)";
+
+                historyData = rows.slice(1);
+                updateUI(latestRow);
+                refreshChart();
+            } catch (e) {
+                isDeviceOnline = false;
+            }
+        }
+
+        function refreshChart() {
+            if (!historyData.length) return;
+            const recent = historyData.slice(-30);
+            
+            const now = new Date().toLocaleTimeString('en-GB');
+            if (chart.data.labels.length >= 30) chart.data.labels.shift();
+            chart.data.labels.push(now);
+
+            if (isMultiGraph) {
+                sensorMap.slice(0, 5).forEach((def, i) => {
+                    if(chart.data.datasets[i].data.length >= 30) chart.data.datasets[i].data.shift();
+                    chart.data.datasets[i].data.push(isDeviceOnline ? parseFloat(recent[recent.length-1][def.idx]) : 0);
+                });
+            } else {
+                const cropKey = document.getElementById('crop-selector').value;
+                const limits = cropStandards[cropKey][currentParam];
+                const def = sensorMap.find(d => d.id === currentParam);
+                
+                if(chart.data.datasets[0].data.length >= 30) {
+                    chart.data.datasets[0].data.shift();
+                    chart.data.datasets[1].data.shift();
+                    chart.data.datasets[2].data.shift();
+                }
+                chart.data.datasets[0].data.push(isDeviceOnline ? parseFloat(recent[recent.length-1][def.idx]) : 0);
+                chart.data.datasets[1].data.push(limits[0]);
+                chart.data.datasets[2].data.push(limits[1]);
+            }
+            chart.update('none');
+        }
+
+        function setActiveParam(id) {
+            currentParam = id;
+            document.getElementById('chart-title').innerText = sensorMap.find(d => d.id === id).label + " Trend";
+            chart.data.labels = [];
+            chart.data.datasets.forEach(ds => ds.data = []);
+            updateChartConfig();
+            fetchData();
+        }
+
+        function toggleMultiGraph() {
+            isMultiGraph = !isMultiGraph;
+            document.getElementById('multi-btn').innerText = isMultiGraph ? "Focus Param" : "Overlay All";
+            chart.data.labels = [];
+            chart.data.datasets.forEach(ds => ds.data = []);
+            updateChartConfig();
+        }
+
+        function handleCropChange() { updateChartConfig(); fetchData(); }
+
+        setInterval(() => {
+            document.getElementById('real-time-clock').innerText = new Date().toLocaleTimeString('en-GB');
+        }, 1000);
+
+        initChart();
+        fetchActualWeather();
+        fetchData();
+        
+        setInterval(fetchData, 1000); 
+        setInterval(fetchActualWeather, 3600000);
+    </script>
+</body>
+</html>
