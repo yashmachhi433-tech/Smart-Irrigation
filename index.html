@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Master Hub | Real-Time IoT Command Center</title>
+    <title>Master Hub | Full-History IoT Command Center</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -91,7 +91,7 @@
     <nav class="flex justify-between items-center bg-[#111217] border border-[#1f2025] p-2 px-4 mb-4 rounded shadow-xl">
         <div class="flex items-center gap-3">
             <div class="bg-emerald-600 p-1 rounded text-white shadow-lg shadow-emerald-900/20"><i data-lucide="layout-grid" class="w-4 h-4"></i></div>
-            <h1 class="text-sm font-black text-white tracking-tight uppercase">Master Health 1 <span class="text-[10px] font-normal text-slate-500 lowercase ml-3">Live Feed Engine</span></h1>
+            <h1 class="text-sm font-black text-white tracking-tight uppercase">Master Health 1 <span class="text-[10px] font-normal text-slate-500 lowercase ml-3">Full Sheet History</span></h1>
         </div>
 
         <div class="flex items-center gap-6">
@@ -161,7 +161,7 @@
         <div class="col-span-12 lg:col-span-4 panel flex flex-col rounded overflow-hidden">
             <div class="p-3 bg-[#16171d] border-b border-[#1f2025] flex justify-between items-center">
                 <span class="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-2"><i data-lucide="activity" class="w-3 h-3 text-emerald-500"></i> Telemetry Matrix</span>
-                <span class="text-[9px] font-mono text-slate-500" id="data-age">Live Stream</span>
+                <span class="text-[9px] font-mono text-slate-500" id="data-age">Complete History</span>
             </div>
             <div class="flex-grow overflow-auto custom-scrollbar">
                 <table class="w-full text-left text-[11px]">
@@ -183,7 +183,7 @@
             <div class="flex justify-between items-start mb-8">
                 <div>
                     <h3 id="chart-title" class="text-[10px] font-black text-white uppercase tracking-widest">Soil Moisture Trend</h3>
-                    <p class="text-[9px] text-slate-500 mt-1 uppercase">1-Second Resolution Tracking</p>
+                    <p class="text-[9px] text-slate-500 mt-1 uppercase">Full Sheet Data Visualization</p>
                 </div>
                 <button onclick="toggleMultiGraph()" id="multi-btn" class="bg-[#1f2025] hover:bg-[#2c2d33] text-[9px] font-bold text-slate-400 px-3 py-1.5 rounded transition-all border border-[#2c2d33]">Overlay All</button>
             </div>
@@ -251,7 +251,6 @@
         let systemMode = 'auto';
         let pumpState = 'off';
         let currentRainProb = 0;
-        let isDeviceOnline = true;
 
         const cropStandards = {
             rice: { name: "Rice", sht_t: [20, 35], sht_h: [60, 90], npk_t: [20, 30], npk_h: [70, 95], ph: [5.5, 7.0], ec: [0, 800], n: [80, 150], p: [30, 60], k: [40, 90] },
@@ -284,10 +283,10 @@
                     maintainAspectRatio: false,
                     plugins: { legend: { display: false } },
                     scales: {
-                        x: { grid: { display: false }, ticks: { color: '#474a56', font: { size: 9 } } },
+                        x: { grid: { display: false }, ticks: { color: '#474a56', font: { size: 9 }, maxRotation: 45, autoSkip: true } },
                         y: { border: { display: false }, grid: { color: '#1f2025' }, ticks: { color: '#474a56', font: { size: 9 } } }
                     },
-                    animation: { duration: 200 }
+                    animation: { duration: 0 } // Faster performance for whole sheet plotting
                 }
             });
             updateChartConfig();
@@ -298,13 +297,13 @@
             if (isMultiGraph) {
                 chart.options.plugins.legend.display = true;
                 sensorMap.slice(0, 5).forEach(d => {
-                    chart.data.datasets.push({ label: d.label, data: [], borderColor: "#3a3c46", borderWidth: 1, pointRadius: 0, tension: 0.4 });
+                    chart.data.datasets.push({ label: d.label, data: [], borderColor: "#3a3c46", borderWidth: 1, pointRadius: 0, tension: 0.2 });
                 });
             } else {
                 chart.options.plugins.legend.display = false;
                 const cropKey = document.getElementById('crop-selector').value;
                 const limits = cropStandards[cropKey][currentParam];
-                chart.data.datasets.push({ label: 'Live', data: [], borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.05)', fill: true, borderWidth: 2, pointRadius: 2, tension: 0.4, order: 1 });
+                chart.data.datasets.push({ label: 'Live', data: [], borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.05)', fill: true, borderWidth: 2, pointRadius: 1, tension: 0.2, order: 1 });
                 chart.data.datasets.push({ label: 'Lower', data: [], borderColor: '#f59e0b', borderWidth: 1, borderDash: [4, 4], pointRadius: 0, fill: false, order: 2 });
                 chart.data.datasets.push({ label: 'Upper', data: [], borderColor: '#ef4444', borderWidth: 1, borderDash: [4, 4], pointRadius: 0, fill: false, order: 3 });
             }
@@ -404,11 +403,10 @@
                 if (rows.length < 2) return;
                 
                 const latestRow = rows[rows.length - 1];
-                
-                // No dead man's switch - just update UI with last row directly
                 document.getElementById('label-conn').innerText = "ONLINE";
                 document.getElementById('label-conn').className = "text-2xl font-black text-emerald-500";
                 
+                // historyData stores all rows starting from row 2
                 historyData = rows.slice(1);
                 updateUI(latestRow);
                 refreshChart();
@@ -420,32 +418,46 @@
 
         function refreshChart() {
             if (!historyData.length) return;
-            const now = new Date().toLocaleTimeString('en-GB');
-            if (chart.data.labels.length >= 30) chart.data.labels.shift();
-            chart.data.labels.push(now);
             
-            const latest = historyData[historyData.length - 1];
+            // PLOT ENTIRE SHEET: Use all available rows from historyData
+            const recent = historyData;
+
+            // Use the timestamp from the sheet for labels (extract time part)
+            chart.data.labels = recent.map(r => {
+                const ts = r[0] || "";
+                return ts.includes(' ') ? ts.split(' ')[1] : ts;
+            });
 
             if (isMultiGraph) {
                 sensorMap.slice(0, 5).forEach((def, i) => {
-                    if(chart.data.datasets[i].data.length >= 30) chart.data.datasets[i].data.shift();
-                    chart.data.datasets[i].data.push(parseFloat(latest[def.idx]));
+                    chart.data.datasets[i].data = recent.map(r => parseFloat(r[def.idx]) || 0);
                 });
             } else {
                 const cropKey = document.getElementById('crop-selector').value;
                 const limits = cropStandards[cropKey][currentParam];
                 const def = sensorMap.find(d => d.id === currentParam);
-                if(chart.data.datasets[0].data.length >= 30) {
-                    chart.data.datasets[0].data.shift(); chart.data.datasets[1].data.shift(); chart.data.datasets[2].data.shift();
-                }
-                chart.data.datasets[0].data.push(parseFloat(latest[def.idx]));
-                chart.data.datasets[1].data.push(limits[0]); chart.data.datasets[2].data.push(limits[1]);
+                
+                chart.data.datasets[0].data = recent.map(r => parseFloat(r[def.idx]) || 0);
+                chart.data.datasets[1].data = recent.map(() => limits[0]);
+                chart.data.datasets[2].data = recent.map(() => limits[1]);
             }
             chart.update('none');
         }
 
-        function setActiveParam(id) { currentParam = id; document.getElementById('chart-title').innerText = sensorMap.find(d => d.id === id).label + " Trend"; chart.data.labels = []; chart.data.datasets.forEach(ds => ds.data = []); updateChartConfig(); fetchData(); }
-        function toggleMultiGraph() { isMultiGraph = !isMultiGraph; document.getElementById('multi-btn').innerText = isMultiGraph ? "Focus Param" : "Overlay All"; chart.data.labels = []; chart.data.datasets.forEach(ds => ds.data = []); updateChartConfig(); }
+        function setActiveParam(id) { 
+            currentParam = id; 
+            document.getElementById('chart-title').innerText = sensorMap.find(d => d.id === id).label + " Trend"; 
+            updateChartConfig(); 
+            fetchData(); 
+        }
+
+        function toggleMultiGraph() { 
+            isMultiGraph = !isMultiGraph; 
+            document.getElementById('multi-btn').innerText = isMultiGraph ? "Focus Param" : "Overlay All"; 
+            updateChartConfig(); 
+            fetchData();
+        }
+
         function handleCropChange() { updateChartConfig(); fetchData(); }
 
         setInterval(() => { document.getElementById('real-time-clock').innerText = new Date().toLocaleTimeString('en-GB'); }, 1000);
