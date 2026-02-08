@@ -3,17 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Master Hub | Full-History IoT Command Center</title>
+    <title>Master Hub | Enterprise Farm IoT</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap');
         
         body { 
             font-family: 'Inter', sans-serif; 
             background-color: #0b0c10; 
             color: #d1d5db;
+        }
+
+        .font-mono-tech {
+            font-family: 'JetBrains Mono', monospace;
         }
 
         .panel {
@@ -22,9 +26,13 @@
             transition: all 0.3s ease;
         }
 
+        .panel:hover {
+            border-color: #2c2d33;
+        }
+
         .active-panel {
             border-color: #10b981 !important;
-            background-color: rgba(16, 185, 129, 0.08) !important;
+            background: linear-gradient(90deg, rgba(16, 185, 129, 0.1) 0%, transparent 100%) !important;
             box-shadow: inset 4px 0 0 0 #10b981;
         }
 
@@ -36,6 +44,7 @@
         .table-row:hover { background-color: #1a1b21; cursor: pointer; }
 
         ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: #0b0c10; }
         ::-webkit-scrollbar-thumb { background: #2c2d33; border-radius: 10px; }
 
         select {
@@ -84,6 +93,13 @@
             50% { background-color: transparent; }
         }
         .animate-blink-row { animation: blink-row 1.5s infinite ease-in-out; }
+
+        .status-lamp {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            display: inline-block;
+        }
     </style>
 </head>
 <body class="p-3 md:p-4 select-none">
@@ -91,7 +107,7 @@
     <nav class="flex justify-between items-center bg-[#111217] border border-[#1f2025] p-2 px-4 mb-4 rounded shadow-xl">
         <div class="flex items-center gap-3">
             <div class="bg-emerald-600 p-1 rounded text-white shadow-lg shadow-emerald-900/20"><i data-lucide="layout-grid" class="w-4 h-4"></i></div>
-            <h1 class="text-sm font-black text-white tracking-tight uppercase">Master Health 1 <span class="text-[10px] font-normal text-slate-500 lowercase ml-3">Full Sheet History</span></h1>
+            <h1 class="text-sm font-black text-white tracking-tight uppercase">Master Health 1 <span class="text-[10px] font-normal text-slate-500 lowercase ml-3">Stabilized Feed Engine</span></h1>
         </div>
 
         <div class="flex items-center gap-6">
@@ -116,7 +132,7 @@
             </div>
             <div class="flex items-center gap-3">
                 <div class="flex items-center gap-2">
-                    <span id="status-dot" class="h-2 w-2 rounded-full bg-emerald-500"></span>
+                    <span id="status-dot" class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
                     <span class="text-[10px] font-bold text-white uppercase tracking-wider" id="sync-text">Connected</span>
                 </div>
                 <div class="h-5 w-px bg-slate-800"></div>
@@ -160,17 +176,22 @@
         <!-- ROW 2 MATRIX -->
         <div class="col-span-12 lg:col-span-4 panel flex flex-col rounded overflow-hidden">
             <div class="p-3 bg-[#16171d] border-b border-[#1f2025] flex justify-between items-center">
-                <span class="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-2"><i data-lucide="activity" class="w-3 h-3 text-emerald-500"></i> Telemetry Matrix</span>
-                <span class="text-[9px] font-mono text-slate-500" id="data-age">Complete History</span>
+                <div class="flex items-center gap-3">
+                    <div class="p-1.5 bg-emerald-500/10 rounded">
+                        <i data-lucide="binary" class="w-4 h-4 text-emerald-500"></i>
+                    </div>
+                    <span class="text-[10px] font-black text-white uppercase tracking-[0.1em]">Telemetry Data Matrix</span>
+                </div>
+                <span class="text-[9px] font-mono bg-black/40 px-2 py-1 rounded border border-[#1f2025] text-emerald-500" id="row-counter">SYNC: 0</span>
             </div>
             <div class="flex-grow overflow-auto custom-scrollbar">
-                <table class="w-full text-left text-[11px]">
-                    <thead class="bg-[#0b0c10] text-slate-500 sticky top-0 uppercase font-black text-[9px]">
+                <table class="w-full text-left">
+                    <thead class="bg-[#0b0c10] text-slate-600 sticky top-0 uppercase font-black text-[8px] tracking-widest">
                         <tr>
-                            <th class="p-3">Sensor</th>
-                            <th class="p-3 text-center">Value</th>
-                            <th class="p-3 text-center">Standard</th>
-                            <th class="p-3 text-center">Status</th>
+                            <th class="p-4">Sensor Interface</th>
+                            <th class="p-4 text-center">Real-Time</th>
+                            <th class="p-4 text-center">Standard</th>
+                            <th class="p-4 text-center">Status</th>
                         </tr>
                     </thead>
                     <tbody id="data-table-body"></tbody>
@@ -202,7 +223,7 @@
                 <p id="alert-msg" class="text-xs text-emerald-200 leading-relaxed font-medium">Monitoring active...</p>
                 <div class="mt-6 pt-4 border-t border-[#1f2025] flex justify-between items-center text-[10px] font-bold uppercase tracking-tighter">
                     <span class="text-slate-500">Protection Active</span>
-                    <span class="text-emerald-500">Live</span>
+                    <span id="protection-status" class="text-emerald-500">Live</span>
                 </div>
             </div>
 
@@ -251,6 +272,11 @@
         let systemMode = 'auto';
         let pumpState = 'off';
         let currentRainProb = 0;
+        
+        let lastRowCount = 0; 
+        let lastRawContent = "";
+        let lastContentChangeTime = Date.now();
+        let isDeviceOnline = true;
 
         const cropStandards = {
             rice: { name: "Rice", sht_t: [20, 35], sht_h: [60, 90], npk_t: [20, 30], npk_h: [70, 95], ph: [5.5, 7.0], ec: [0, 800], n: [80, 150], p: [30, 60], k: [40, 90] },
@@ -262,15 +288,15 @@
         };
 
         const sensorMap = [
-            { id: 'sht_t', label: 'Air Temp', unit: '°C', idx: 1 },
-            { id: 'sht_h', label: 'Air Humid', unit: '%', idx: 2 },
-            { id: 'npk_h', label: 'Soil Moisture', unit: '%', idx: 3 }, 
-            { id: 'npk_t', label: 'Soil Temp', unit: '°C', idx: 4 }, 
-            { id: 'ec', label: 'Conductivity', unit: 'uS', idx: 5 },
-            { id: 'ph', label: 'Soil pH', unit: '', idx: 6 },
-            { id: 'n', label: 'Nitrogen', unit: 'mg', idx: 7 },
-            { id: 'p', label: 'Phosphorus', unit: 'mg', idx: 8 },
-            { id: 'k', label: 'Potassium', unit: 'mg', idx: 9 }
+            { id: 'sht_t', label: 'Air Temperature', unit: '°C', idx: 1, icon: 'thermometer' },
+            { id: 'sht_h', label: 'Air Humidity', unit: '%', idx: 2, icon: 'droplets' },
+            { id: 'npk_t', label: 'Soil Temperature', unit: '°C', idx: 4, icon: 'sun' }, 
+            { id: 'npk_h', label: 'Soil Moisture', unit: '%', idx: 3, icon: 'waves' }, 
+            { id: 'ec', label: 'Conductivity', unit: 'uS', idx: 5, icon: 'zap' },
+            { id: 'ph', label: 'Soil pH', unit: '', idx: 6, icon: 'flask-conical' },
+            { id: 'n', label: 'Nitrogen', unit: 'mg', idx: 7, icon: 'sprout' },
+            { id: 'p', label: 'Phosphorus', unit: 'mg', idx: 8, icon: 'leaf' },
+            { id: 'k', label: 'Potassium', unit: 'mg', idx: 9, icon: 'atom' }
         ];
 
         function initChart() {
@@ -286,7 +312,7 @@
                         x: { grid: { display: false }, ticks: { color: '#474a56', font: { size: 9 }, maxRotation: 45, autoSkip: true } },
                         y: { border: { display: false }, grid: { color: '#1f2025' }, ticks: { color: '#474a56', font: { size: 9 } } }
                     },
-                    animation: { duration: 0 } // Faster performance for whole sheet plotting
+                    animation: false
                 }
             });
             updateChartConfig();
@@ -297,13 +323,13 @@
             if (isMultiGraph) {
                 chart.options.plugins.legend.display = true;
                 sensorMap.slice(0, 5).forEach(d => {
-                    chart.data.datasets.push({ label: d.label, data: [], borderColor: "#3a3c46", borderWidth: 1, pointRadius: 0, tension: 0.2 });
+                    chart.data.datasets.push({ label: d.label, data: [], borderColor: "#3a3c46", borderWidth: 1, pointRadius: 0, tension: 0.1 });
                 });
             } else {
                 chart.options.plugins.legend.display = false;
                 const cropKey = document.getElementById('crop-selector').value;
                 const limits = cropStandards[cropKey][currentParam];
-                chart.data.datasets.push({ label: 'Live', data: [], borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.05)', fill: true, borderWidth: 2, pointRadius: 1, tension: 0.2, order: 1 });
+                chart.data.datasets.push({ label: 'Live', data: [], borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.05)', fill: true, borderWidth: 2, pointRadius: 1, tension: 0.1, order: 1 });
                 chart.data.datasets.push({ label: 'Lower', data: [], borderColor: '#f59e0b', borderWidth: 1, borderDash: [4, 4], pointRadius: 0, fill: false, order: 2 });
                 chart.data.datasets.push({ label: 'Upper', data: [], borderColor: '#ef4444', borderWidth: 1, borderDash: [4, 4], pointRadius: 0, fill: false, order: 3 });
             }
@@ -318,7 +344,6 @@
             indicator.className = pumpState === 'on' ? "w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_10px_#10b981]" : "w-2 h-2 rounded-full bg-slate-800";
             const isAuto = systemMode === 'auto';
             onBtn.disabled = isAuto; offBtn.disabled = isAuto;
-            onBtn.classList.toggle('btn-disabled', isAuto); offBtn.classList.toggle('btn-disabled', isAuto);
         }
 
         function setPumpMode(mode) {
@@ -341,7 +366,6 @@
                 const data = await res.json();
                 currentRainProb = data.daily.precipitation_probability_max[0];
                 document.getElementById('label-rain').innerText = currentRainProb + "%";
-                document.getElementById('weather-desc').innerText = "LIVE DATA";
                 const container = document.getElementById('weather-forecast');
                 container.innerHTML = '';
                 const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
@@ -362,17 +386,52 @@
             let alerts = [];
 
             sensorMap.forEach(s => {
-                let val = parseFloat(latest[s.idx]);
+                let val = parseFloat(latest[s.idx]) || 0;
                 const range = crop[s.id];
                 const isViolation = (val < range[0] || val > range[1]);
                 const row = document.createElement('tr');
-                row.className = `table-row border-b border-[#1f2025] ${currentParam === s.id ? 'active-panel' : ''} ${isViolation ? 'animate-blink-row' : ''}`;
+                row.className = `table-row border-b border-[#1f2025] py-4 ${currentParam === s.id ? 'active-panel' : ''} ${isViolation ? 'animate-blink-row' : ''}`;
+                row.setAttribute('data-id', s.id);
                 row.onclick = () => setActiveParam(s.id);
-                row.innerHTML = `<td class="p-3 text-white font-medium">${s.label}</td><td class="p-3 text-center font-mono font-black ${isViolation ? 'text-rose-500' : 'text-emerald-500'}">${val.toFixed(1)}</td><td class="p-3 text-center text-slate-600 font-mono">${range[0]}-${range[1]}</td><td class="p-3 text-center"><span class="status-chip ${isViolation ? 'bg-rose-500/20 text-rose-500' : 'bg-emerald-500/20 text-emerald-500'}">${isViolation ? 'Warn' : 'OK'}</span></td>`;
+                
+                row.innerHTML = `
+                    <td class="p-4">
+                        <div class="flex items-center gap-3">
+                            <div class="p-2 rounded bg-black/30 border border-[#2c2d33] group-hover:border-emerald-500/50 transition-colors">
+                                <i data-lucide="${s.icon}" class="w-4 h-4 ${isViolation ? 'text-rose-500' : 'text-slate-400'}"></i>
+                            </div>
+                            <div>
+                                <p class="text-[10px] font-black text-white uppercase tracking-tight">${s.label}</p>
+                                <p class="text-[8px] text-slate-500 font-mono">CHANNEL_${s.idx.toString().padStart(2, '0')}</p>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="p-4 text-center">
+                        <span class="font-mono-tech text-lg font-bold ${isViolation ? 'text-rose-500' : 'text-emerald-500'} tracking-tighter">
+                            ${val.toFixed(1)}<span class="text-[10px] ml-0.5 opacity-50 font-normal">${s.unit || ''}</span>
+                        </span>
+                    </td>
+                    <td class="p-4 text-center">
+                        <div class="flex flex-col items-center">
+                            <span class="text-[10px] text-slate-400 font-mono">${range[0]} - ${range[1]}</span>
+                            <div class="w-12 h-1 bg-slate-800 rounded-full mt-1 overflow-hidden relative">
+                                <div class="absolute bg-emerald-500/30 h-full" style="left: 0; width: 100%"></div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="p-4 text-center">
+                        <div class="flex items-center justify-center gap-2">
+                            <span class="status-lamp ${isViolation ? 'bg-rose-500 shadow-[0_0_8px_#f43f5e]' : 'bg-emerald-500 shadow-[0_0_8px_#10b981]'}"></span>
+                            <span class="text-[9px] font-black uppercase ${isViolation ? 'text-rose-500' : 'text-emerald-500'}">${isViolation ? 'Out' : 'OK'}</span>
+                        </div>
+                    </td>
+                `;
                 tableBody.appendChild(row);
                 if (isViolation) alerts.push(s.label);
             });
+            lucide.createIcons();
 
+            // Corrected Index: Soil Moisture is Index 3
             const moist = parseFloat(latest[3]);
             document.getElementById('master-val').innerText = Math.round(moist) + "%";
             document.getElementById('master-gauge-fill').style.transform = `rotate(${-180 + (moist * 1.8)}deg)`;
@@ -385,13 +444,13 @@
 
             const alertMsg = document.getElementById('alert-msg'), alertPanel = document.getElementById('alert-panel'), appStat = document.getElementById('app-status');
             if (alerts.length > 0) {
-                alertMsg.innerHTML = `<span class="font-black text-rose-500">EXCEPTION:</span> ${alerts.join(", ")} out of range.`;
+                alertMsg.innerHTML = `<span class="font-black text-rose-500">ALERT:</span> ${alerts.join(", ")} outside range.`;
                 alertPanel.className = "panel p-5 rounded border-l-4 border-rose-500 bg-rose-950/5 animate-blink-alert";
-                appStat.innerText = "WARNING"; appStat.className = "text-2xl font-black text-rose-500";
+                appStat.innerText = "WARNING";
             } else {
-                alertMsg.innerText = "System normal. All parameters safe.";
+                alertMsg.innerText = "System normal. Parameters within safety limits.";
                 alertPanel.className = "panel p-5 rounded border-l-4 border-emerald-500 bg-emerald-950/5";
-                appStat.innerText = "HEALTHY"; appStat.className = "text-2xl font-black text-emerald-500";
+                appStat.innerText = "HEALTHY";
             }
         }
 
@@ -399,30 +458,44 @@
             try {
                 const res = await fetch(`${csvUrl}&cb=${Date.now()}`);
                 const text = await res.text();
-                const rows = text.split('\n').map(r => r.split(',')).filter(r => r.length > 5);
+                
+                const rows = text.trim().split(/\r?\n/)
+                                .map(line => line.split(',').map(cell => cell.trim()))
+                                .filter(r => r.length >= 6 && r[0] !== "");
+                
                 if (rows.length < 2) return;
+
+                if (rows.length < lastRowCount) return; 
                 
                 const latestRow = rows[rows.length - 1];
-                document.getElementById('label-conn').innerText = "ONLINE";
-                document.getElementById('label-conn').className = "text-2xl font-black text-emerald-500";
+                const currentRaw = latestRow.join('|');
+
+                if (currentRaw !== lastRawContent) {
+                    lastRawContent = currentRaw;
+                    lastContentChangeTime = Date.now();
+                    isDeviceOnline = true;
+                } else if (Date.now() - lastContentChangeTime > 60000) {
+                    isDeviceOnline = false;
+                }
+
+                document.getElementById('label-conn').innerText = isDeviceOnline ? "ONLINE" : "OFFLINE";
+                document.getElementById('label-conn').className = isDeviceOnline ? "text-2xl font-black text-emerald-500" : "text-2xl font-black text-slate-500";
+                document.getElementById('row-counter').innerText = "SYNC: " + (rows.length - 1);
                 
-                // historyData stores all rows starting from row 2
                 historyData = rows.slice(1);
                 updateUI(latestRow);
-                refreshChart();
-            } catch (e) {
-                document.getElementById('label-conn').innerText = "OFFLINE";
-                document.getElementById('label-conn').className = "text-2xl font-black text-slate-500";
-            }
+
+                if (rows.length !== lastRowCount) {
+                    lastRowCount = rows.length;
+                    refreshChart();
+                }
+            } catch (e) {}
         }
 
         function refreshChart() {
             if (!historyData.length) return;
-            
-            // PLOT ENTIRE SHEET: Use all available rows from historyData
             const recent = historyData;
 
-            // Use the timestamp from the sheet for labels (extract time part)
             chart.data.labels = recent.map(r => {
                 const ts = r[0] || "";
                 return ts.includes(' ') ? ts.split(' ')[1] : ts;
@@ -430,14 +503,14 @@
 
             if (isMultiGraph) {
                 sensorMap.slice(0, 5).forEach((def, i) => {
-                    chart.data.datasets[i].data = recent.map(r => parseFloat(r[def.idx]) || 0);
+                    chart.data.datasets[i].data = recent.map(r => (parseFloat(r[def.idx]) || 0));
                 });
             } else {
                 const cropKey = document.getElementById('crop-selector').value;
                 const limits = cropStandards[cropKey][currentParam];
                 const def = sensorMap.find(d => d.id === currentParam);
                 
-                chart.data.datasets[0].data = recent.map(r => parseFloat(r[def.idx]) || 0);
+                chart.data.datasets[0].data = recent.map(r => (parseFloat(r[def.idx]) || 0));
                 chart.data.datasets[1].data = recent.map(() => limits[0]);
                 chart.data.datasets[2].data = recent.map(() => limits[1]);
             }
@@ -448,20 +521,32 @@
             currentParam = id; 
             document.getElementById('chart-title').innerText = sensorMap.find(d => d.id === id).label + " Trend"; 
             updateChartConfig(); 
-            fetchData(); 
+            refreshChart();
         }
 
         function toggleMultiGraph() { 
             isMultiGraph = !isMultiGraph; 
-            document.getElementById('multi-btn').innerText = isMultiGraph ? "Focus Param" : "Overlay All"; 
+            document.getElementById('multi-btn').innerText = isMultiGraph ? "Focus Mode" : "Overlay Mode"; 
             updateChartConfig(); 
-            fetchData();
+            refreshChart();
         }
 
-        function handleCropChange() { updateChartConfig(); fetchData(); }
+        function handleCropChange() { 
+            updateChartConfig(); 
+            refreshChart();
+            const latest = historyData[historyData.length - 1];
+            if(latest) updateUI(latest);
+        }
 
-        setInterval(() => { document.getElementById('real-time-clock').innerText = new Date().toLocaleTimeString('en-GB'); }, 1000);
-        initChart(); fetchActualWeather(); fetchData(); setInterval(fetchData, 1000); setInterval(fetchActualWeather, 3600000);
+        setInterval(() => { 
+            document.getElementById('real-time-clock').innerText = new Date().toLocaleTimeString('en-GB'); 
+        }, 1000);
+        
+        initChart(); 
+        fetchActualWeather(); 
+        fetchData(); 
+        setInterval(fetchData, 1000); 
+        setInterval(fetchActualWeather, 3600000);
     </script>
 </body>
 </html>
